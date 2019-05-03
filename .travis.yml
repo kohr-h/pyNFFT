@@ -1,0 +1,93 @@
+language: python
+
+matrix:
+    include:
+        - python: 2.7
+          env: NUMPY_VERSION='1.16.*'
+
+        - python: 3.5
+          env: NUMPY_VERSION=1.10.1
+
+        - python: 3.5
+          env: NUMPY_VERSION='1.16.*'
+
+        - python: 3.6
+          env: NUMPY_VERSION='1.16.*'
+
+        - python: 3.7
+          env: NUMPY_VERSION='1.16.*'
+
+        - python: 3.7
+          env: NUMPY_VERSION='1.16.*' COVERALLS=true
+
+        - python: 3.7
+          env: NUMPY_VERSION='1.16.*' SKIP_TESTS=true BUILD_DOCS=true
+
+sudo: false
+
+addons:
+    apt:
+        packages:
+            libfftw3-dev
+            texlive-latex-base
+            texlive-latex-recommended
+            texlive-latex-extra
+            dvipng
+
+
+# Setup numpy + scipy using miniconda
+# See http://conda.pydata.org/docs/travis.html
+install:
+    # Install miniconda according to Python version of the build (saves downloading if versions match)
+    - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+        wget -q https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+      else
+        wget -q https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+      fi
+    - bash miniconda.sh -b -p $HOME/miniconda
+    - export PATH="$HOME/miniconda/bin:$PATH"
+    - hash -r
+    - conda config --set always_yes yes --set changeps1 no
+    # Useful for debugging any issues with conda
+    - conda info -a
+
+    # Install dependencies and enter test environment. Use conda for the minimal stuff to
+    # make it run faster and avoid downloading big stuff like mkl
+    - conda create -n testenv
+    - source activate testenv
+    - conda config --env --add channels conda-forge
+    - conda install python=$TRAVIS_PYTHON_VERSION nfft
+    # Install packages with pip if possible, it's way faster
+    - pip install "numpy==$NUMPY_VERSION" cython coveralls
+
+    # Doc dependencies
+    - if [[ "$BUILD_DOCS" == "true" ]]; then
+        pip install "sphinx>=1.7" "travis-sphinx>=2.1.2";
+      fi
+
+    # Build our package
+    - python setup.py build_ext --inplace
+    - pip install -e .
+
+script:
+    # Run tests and produce a coverage report.
+    # Also invoke the alternative way of running the unit tests.
+    # Fail immediately after first failure to speed up the whole thing.
+    - if [[ "$SKIP_TESTS" != "true" ]]; then
+        pytest --doctest-modules pynfft/ || exit -1;
+        echo "import pytest; pytest.main(['pynfft', '--doctest-modules'])" > $TRAVIS_BUILD_DIR/_run_tests.py;
+        coverage run $TRAVIS_BUILD_DIR/_run_tests.py;
+      fi
+    # Build the Sphinx doc (only for one specific build, master branch, no PR)
+    # To avoid clogging the logs, we redirect stderr to /dev/null
+    - if [[ "$BUILD_DOCS" == "true" ]]; then
+        cd doc && make html 2>/dev/null || exit -1;
+      fi
+
+after_success:
+    # Push coverage report to coveralls, but only the one with most dependencies installed
+    - if [[ "$COVERALLS" == "true" ]]; then
+        coveralls;
+      fi
+    # TODO: how to deploy the docs?
+
