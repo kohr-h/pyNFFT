@@ -34,24 +34,24 @@ install:
     - export PATH="$HOME/miniconda/bin:$PATH"
     - hash -r
     - conda config --set always_yes yes --set changeps1 no
+    - conda update conda
     # Useful for debugging any issues with conda
     - conda info -a
 
-    # Install dependencies and enter test environment. Use conda for the minimal stuff to
-    # make it run faster and avoid downloading big stuff like mkl
+    # Install dependencies and enter test environment
     - conda create -n testenv
-    - source activate testenv
+    - conda activate testenv
     - conda config --env --add channels conda-forge
     - conda install python=$TRAVIS_PYTHON_VERSION "numpy<1.16.0" nfft cython
+    - python -c "import numpy; import sys; print(sys.version); print(numpy.__version__); print(numpy.__path__);"
 
     # Doc dependencies
     - if [[ "$BUILD_DOCS" == "true" ]]; then
         pip install "sphinx>=1.7" "travis-sphinx>=2.1.2";
       fi
 
-    # Build our package
-    - CFLAGS="-I$CONDA_PREFIX/include" LDFLAGS="-L$CONDA_PREFIX/lib" python setup.py build_ext --inplace
-    - pip install -e .
+    # Build and install our package
+    - CFLAGS="-I$CONDA_PREFIX/include" LDFLAGS="-L$CONDA_PREFIX/lib" pip install -e . -vv
 
 script:
     # Run tests and produce a coverage report.
