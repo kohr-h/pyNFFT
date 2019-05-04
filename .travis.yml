@@ -7,6 +7,8 @@ matrix:
         - python: 3.6
         # TODO: 3.7
         - python: 3.6
+          env: SKIP_TESTS=true
+        - python: 3.6
           env: SKIP_TESTS=true BUILD_DOCS=true
 
 sudo: false
@@ -41,7 +43,7 @@ install:
     - conda create -n testenv
     - source activate testenv
     - conda config --env --add channels conda-forge
-    - conda install python=$TRAVIS_PYTHON_VERSION "numpy<1.16.0" nfft cython
+    - conda install python=$TRAVIS_PYTHON_VERSION "numpy<1.16.0" nfft cython pytest
     - python -c "import numpy; import sys; print(sys.version); print(numpy.__version__); print(numpy.__path__);"
 
     # Doc dependencies
