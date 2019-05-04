@@ -180,7 +180,7 @@ CLASSIFIERS = [
 
 MAJOR = 1
 MINOR = 3
-MICRO = 2
+MICRO = 3
 ISRELEASED = True
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 
@@ -258,20 +258,20 @@ def setup_package():
         from setuptools import setup
     except ImportError:
         from distutils.core import setup
-    
+
     # Get current version
     FULLVERSION, GIT_REVISION = get_version_info()
-    
+
     # Refresh version file
     write_version_py()
-    
+
     # Figure out whether to add ``*_requires = ['numpy']``.
     build_requires = []
     try:
         import numpy
     except:
         build_requires = ['numpy>=1.6',]
-        
+
     # Common setup args
     setup_args = dict(
         name = 'pyNFFT',
@@ -287,8 +287,8 @@ def setup_package():
         test_suite='nose.collector',
         setup_requires = build_requires,
         install_requires = build_requires,
-        )
-        
+    )
+
     if len(sys.argv) >= 2 and ('--help' in sys.argv[1:] or
             sys.argv[1] in ('--help-commands', 'egg_info', '--version',
                             'clean')):
@@ -306,7 +306,7 @@ def setup_package():
             extensions = get_extensions()
         setup_args['packages'] = ['pynfft', 'pynfft.tests']
         setup_args['ext_modules'] = extensions
-        
+
     setup(**setup_args)
 
 

@@ -25,10 +25,3 @@ cdef extern from "nfft3.h":
 
     void nfft_vrand_shifted_unit_double (double *x, int n)
         # Inits a vector of random double numbers in $[-1/2,1/2]$ .
-
-    void nfft_voronoi_weights_1d (double *w, double *x, int M)
- 	    # Computes non periodic voronoi weights, \
-        # assumes ordered nodes $x_j$.
-
-    void nfft_voronoi_weights_S2(double *w, double *xi, int M)
-        # Computes voronoi weights for nodes on the sphere S^2. */
