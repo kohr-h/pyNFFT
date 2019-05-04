@@ -42,7 +42,7 @@ install:
     - conda create -n testenv
     - source activate testenv
     - conda config --env --add channels conda-forge
-    - conda install python=$TRAVIS_PYTHON_VERSION "numpy!=1.16.0,!=1.16.2" nfft cython
+    - conda install python=$TRAVIS_PYTHON_VERSION "numpy<1.16.0" nfft cython
 
     # Doc dependencies
     - if [[ "$BUILD_DOCS" == "true" ]]; then
