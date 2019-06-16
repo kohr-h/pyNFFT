@@ -121,7 +121,7 @@ class CleanCommand(Command):
         self._clean_me = []
         self._clean_trees = []
         self._clean_exclude = []
-        # clean Cython generated files and cache
+        # Clean compiled code of various sorts
         for root, dirs, files in os.walk(package_dir):
             for f in files:
                 if f in self._clean_exclude:
@@ -137,7 +137,7 @@ class CleanCommand(Command):
             for d in dirs:
                 if d == "__pycache__":
                     self._clean_trees.append(path.join(root, d))
-        # clean build and sdist directories in root
+        # Clean build and sdist directories in root
         for d in ("build", "dist"):
             if path.exists(d):
                 self._clean_trees.append(d)

@@ -18,8 +18,13 @@
 import numpy as np
 
 from ._nfft import _NFFTDouble, _NFFTFloat, _NFFTLongDouble
+from .util import simd_align_offset
 
 # fmt: off
+__all__ = (
+    "NFFT",
+)
+
 NFFT_FLAGS = {
     "PRE_PHI_HUT": 1 << 0,
     "FG_PSI": 1 << 1,
@@ -72,40 +77,51 @@ class NFFT(object):
     inputs/outputs of the transform can be read/written by access to the
     :attr:`f` and :attr:`f_hat` attributes.
 
-    :param N: multi-bandwith.
-    :type N: tuple of int
-    :param M: total number of samples.
-    :type n: int
-    :param n: oversampled multi-bandwith, defaults to ``2 * N``.
-    :type n: tuple of int
+    For details on the meanings of the parameters and the algorithm, see
+    `the corresponding NFFT documentation section
+    <https://www-user.tu-chemnitz.de/~potts/nfft/guide3/html/node6.html>`_.
+
+    :param N: Multi-bandwidth, i.e., number of uniformly spaced Fourier
+    coefficients per axis. Determines the shape of :attr:`f_hat`.
+    :type N: int or sequence of int
+
+    :param M: Number of samples, determines the shape of the 1D array
+    :attr:`f`.
+    :type M: int
+
+    :param n: Oversampled multi-bandwith, defaults to ``2 * N`` (per axis).
+    :type n: int or sequence of int
+
     :param m: Cut-off parameter of the window function.
     :type m: int
-    :param flags: list of precomputation flags, see note below.
-    :type flags: tuple
-    :param prec: Floating point precision, can be ``'double'`` (default), ``'single'`` or ``'long double'``
-    :type prec: string
+    :param flags: List of precomputation flags, see note below.
+    :type flags: sequence
+
+    :param prec: Floating point precision, can be ``'double'`` (default),
+    ``'single'`` or ``'long double'``
+    :type prec: data-type
 
     **Precomputation flags**
 
     This table lists the supported precomputation flags for the NFFT.
 
-    +----------------------------+--------------------------------------------------+
-    | Flag                       | Description                                      |
-    +============================+==================================================+
-    | PRE_PHI_HUT                | Precompute the roll-off correction coefficients. |
-    +----------------------------+--------------------------------------------------+
-    | FG_PSI                     | Convolution uses Fast Gaussian properties.       |
-    +----------------------------+--------------------------------------------------+
-    | PRE_LIN_PSI                | Convolution uses a precomputed look-up table.    |
-    +----------------------------+--------------------------------------------------+
-    | PRE_FG_PSI                 | Precompute Fast Gaussian.                        |
-    +----------------------------+--------------------------------------------------+
-    | PRE_PSI                    | Standard precomputation, uses M*(2m+2)*d values. |
-    +----------------------------+--------------------------------------------------+
-    | PRE_FULL_PSI               | Full precomputation, uses M*(2m+2)^d values.     |
-    +----------------------------+--------------------------------------------------+
+    +----------------------------+------------------------------------------------------+
+    | Flag                       | Description                                          |
+    +============================+======================================================+
+    | PRE_PHI_HUT                | Precompute the roll-off correction coefficients.     |
+    +----------------------------+------------------------------------------------------+
+    | FG_PSI                     | Convolution uses Fast Gaussian properties.           |
+    +----------------------------+------------------------------------------------------+
+    | PRE_LIN_PSI                | Convolution uses a precomputed look-up table.        |
+    +----------------------------+------------------------------------------------------+
+    | PRE_FG_PSI                 | Precompute Fast Gaussian.                            |
+    +----------------------------+------------------------------------------------------+
+    | PRE_PSI                    | Standard precomputation, uses ``M*(2m+2)*d`` values. |
+    +----------------------------+------------------------------------------------------+
+    | PRE_FULL_PSI               | Full precomputation, uses ``M*(2m+2)^d`` values.     |
+    +----------------------------+------------------------------------------------------+
 
-    Default set of flags is ``('PRE_PHI_HUT', 'PRE_PSI')``.
+    The default set of flags is ``('PRE_PHI_HUT', 'PRE_PSI')``.
     """
 
     def __init__(self, N, M, n=None, m=12, flags=None, prec="double"):
@@ -222,8 +238,6 @@ class NFFT(object):
 
         :param use_dft: whether to use the DFT instead of the fast algorithm.
         :type use_dft: boolean
-        :returns: the updated :attr:`f` array.
-        :rtype: ndarray
         """
         if not self._precomputed:
             raise RuntimeError(
@@ -235,10 +249,8 @@ class NFFT(object):
     def adjoint(self, use_dft=False):
         """Perform the adjoint NFFT.
 
-        :param use_dft: whether to use the DFT instead of the fast algorithm.
-        :type use_dft: boolean
-        :returns: the updated :attr:`f_hat` array.
-        :rtype: ndarray
+        :param use_dft: Whether to use the DFT instead of the fast algorithm.
+        :type use_dft: bool
         """
         if not self._precomputed:
             raise RuntimeError(
@@ -247,7 +259,29 @@ class NFFT(object):
             )
         self._plan.adjoint(use_dft)
 
-    # --- Pass-through from C plan --- #
+    # --- Properties --- #
+
+    @staticmethod
+    def _check_setter_input(new, orig):
+        """Various sanity checks for property setters."""
+        if not isinstance(new, np.ndarray):
+            raise TypeError("a numpy.ndarray is required, got {!r}".format(new))
+        if new.shape != orig.shape:
+            raise ValueError(
+                "array must have the same shape as original, but {} != {}"
+                "".format(new.shape, orig.shape)
+            )
+        if orig.dtype != orig.dtype:
+            raise ValueError(
+                "array must have the same dtype as original, but {} != {}"
+                "".format(new.dtype, orig.dtype)
+            )
+        if not new.flags.c_contiguous:
+            raise ValueError("array must be C-contiguous")
+        if 0 in new.strides:
+            raise ValueError("array cannot have 0 in strides")
+        if simd_align_offset(new) != 0:
+            raise ValueError("array must be SIMD-aligned (hint: use `empty_aligned`)")
 
     @property
     def f(self):
@@ -256,7 +290,8 @@ class NFFT(object):
 
     @f.setter
     def f(self, new_f):
-        self.f.ravel()[:] = new_f.ravel()
+        self._check_setter_input(new_f, self.f)
+        self._plan.f = new_f
 
     @property
     def f_hat(self):
@@ -265,7 +300,8 @@ class NFFT(object):
 
     @f_hat.setter
     def f_hat(self, new_f_hat):
-        self.f_hat.ravel()[:] = new_f_hat.ravel()
+        self._check_setter_input(new_f_hat, self.f_hat)
+        self._plan.f_hat = new_f_hat
 
     @property
     def x(self):
@@ -274,9 +310,8 @@ class NFFT(object):
 
     @x.setter
     def x(self, new_x):
-        self.x.ravel()[:] = new_x.ravel()
-
-    # --- Plan properties --- #
+        self._check_setter_input(new_x, self.x)
+        self._plan.x = new_x
 
     @property
     def d(self):

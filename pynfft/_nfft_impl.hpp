@@ -22,15 +22,16 @@
 
 #define _unused(x) ((void)(x))  // to avoid warnings for assert-only variables
 
-#include <bitset>  // for debug printing
 #include <cassert>
+#include <iostream>  // debugging
 #include <vector>
 
-#include <pybind11/pybind11.h>
 #include <pybind11/complex.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
 
 extern "C" {
+#include "cpu.h"
 #include "fftw3.h"
 #include "nfft3.h"
 }
@@ -116,12 +117,17 @@ public:
 
   // Property f_hat
   py::array_t<std::complex<FLOAT_T>> f_hat() const { return f_hat_; }
+  void f_hat_setter(py::array_t<std::complex<FLOAT_T>> &f_hat_new) {
+    f_hat_ = f_hat_new;
+  }
 
   // Property f
   py::array_t<std::complex<FLOAT_T>> f() const { return f_; }
+  void f_setter(py::array_t<std::complex<FLOAT_T>> &f_new) { f_ = f_new; }
 
   // Property x
   py::array_t<FLOAT_T> x() const { return x_; }
+  void x_setter(py::array_t<FLOAT_T> &x_new) { x_ = x_new; }
 
   // Precomputation
   void precompute() { nfft_precompute_one_psi_impl<FLOAT_T>(&plan_); }
@@ -150,6 +156,45 @@ public:
   py::array_t<std::complex<FLOAT_T>> f_;
   py::array_t<FLOAT_T> x_;
 };
+
+//
+// Array creation with SIMD-aligned memory
+//
+
+template <typename FLOAT_T>
+py::array_t<FLOAT_T> _empty_aligned_real(py::tuple &shape) {
+  // Convert shape & calculate number of elements
+  std::vector<ssize_t> shp_vec = shape_vec<ssize_t>(shape);
+  size_t num_el = total_size<size_t>(shape);
+
+  // Allocate SIMD-aligned memory
+  FLOAT_T *raw_arr = alloc_real<FLOAT_T>(num_el);
+  assert(raw_arr != nullptr);
+
+  // Wrap into Python capsule and construct wrapping Numpy array
+  py::capsule arr_caps(static_cast<void *>(raw_arr), dealloc<FLOAT_T>);
+  py::array_t<FLOAT_T> arr = py::array_t<FLOAT_T>(shp_vec, raw_arr, arr_caps);
+
+  return arr;
+}
+
+template <typename FLOAT_T>
+py::array_t<std::complex<FLOAT_T>> _empty_aligned_complex(py::tuple &shape) {
+  // Convert shape & calculate number of elements
+  std::vector<ssize_t> shp_vec = shape_vec<ssize_t>(shape);
+  size_t num_el = total_size<size_t>(shape);
+
+  // Allocate SIMD-aligned memory
+  fftw_complex_t<FLOAT_T> *raw_arr = alloc_complex<FLOAT_T>(num_el);
+  assert(raw_arr != nullptr);
+
+  // Wrap into Python capsule and construct wrapping Numpy array
+  py::capsule arr_caps(static_cast<void *>(raw_arr), dealloc<FLOAT_T>);
+  py::array_t<std::complex<FLOAT_T>> arr = py::array_t<std::complex<FLOAT_T>>(
+      shp_vec, reinterpret_cast<std::complex<FLOAT_T> *>(raw_arr), arr_caps);
+
+  return arr;
+}
 
 //
 // Module-level startup and teardown functions

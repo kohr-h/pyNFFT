@@ -24,8 +24,8 @@
 
 #define _unused(x) ((void)(x))  // to avoid warnings for assert-only variables
 
-#include <bitset>  // for debugging
 #include <cassert>
+#include <iostream>  // for debugging
 
 extern "C" {
 #include "fftw3.h"

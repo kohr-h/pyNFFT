@@ -17,6 +17,12 @@
 
 from .nfft import NFFT
 
+# fmt: off
+__all__ = (
+    "as_linop",
+)
+# fmt: on
+
 
 def as_linop(plan):
     """Construct a SciPy LinearOperator from an NFFT plan.
@@ -32,9 +38,7 @@ def as_linop(plan):
     from scipy.sparse.linalg import LinearOperator
 
     if not isinstance(plan, NFFT):
-        raise TypeError(
-            "`plan` must be an `NFFT` instance, got {!r}".format(plan)
-        )
+        raise TypeError("`plan` must be an `NFFT` instance, got {!r}".format(plan))
 
     mat_shape = (plan.M, plan.N_total)
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright 2013-2019 PyNFFT developers and contributors
@@ -16,6 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from pynfft.version import version as __version__
-from pynfft.nfft import NFFT
-from pynfft.linop import as_linop
+__all__ = ()
+
+from .version import version as __version__
+
+from . import util
+from .nfft import *
+__all__ += nfft.__all__
+from . import linop
