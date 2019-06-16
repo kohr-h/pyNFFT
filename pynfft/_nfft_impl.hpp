@@ -119,15 +119,22 @@ public:
   py::array_t<std::complex<FLOAT_T>> f_hat() const { return f_hat_; }
   void f_hat_setter(py::array_t<std::complex<FLOAT_T>> &f_hat_new) {
     f_hat_ = f_hat_new;
+    plan_.f_hat = static_cast<fftw_complex_t<FLOAT_T> *>(f_hat_.request().ptr);
   }
 
   // Property f
   py::array_t<std::complex<FLOAT_T>> f() const { return f_; }
-  void f_setter(py::array_t<std::complex<FLOAT_T>> &f_new) { f_ = f_new; }
+  void f_setter(py::array_t<std::complex<FLOAT_T>> &f_new) {
+    f_ = f_new;
+    plan_.f = static_cast<fftw_complex_t<FLOAT_T> *>(f_.request().ptr);
+}
 
   // Property x
   py::array_t<FLOAT_T> x() const { return x_; }
-  void x_setter(py::array_t<FLOAT_T> &x_new) { x_ = x_new; }
+  void x_setter(py::array_t<FLOAT_T> &x_new) {
+    x_ = x_new;
+    plan_.x = static_cast<FLOAT_T *>(x_.request().ptr);
+  }
 
   // Precomputation
   void precompute() { nfft_precompute_one_psi_impl<FLOAT_T>(&plan_); }

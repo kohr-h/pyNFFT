@@ -45,12 +45,12 @@ def as_linop(plan):
     def matvec(v):
         plan.f_hat[:] = v.reshape(plan.N)
         plan.trafo()
-        return plan.f.ravel()
+        return plan.f.ravel().copy()
 
     def rmatvec(u):
         plan.f[:] = u.reshape((plan.M,))
         plan.adjoint()
-        return plan.f_hat.ravel()
+        return plan.f_hat.ravel().copy()
 
     return LinearOperator(
         shape=mat_shape, dtype=plan.dtype, matvec=matvec, rmatvec=rmatvec
